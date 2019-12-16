@@ -1,0 +1,26 @@
+---
+title: "Dada2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dada2)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+```
+
+## Dada2 Pipeline
+
+See [dada2 github](https://benjjneb.github.io/dada2/index.html) for more details including tutorial (used to construct this pipeline).
+
+Note, loaded dada2 from anaconda cloud, v1.14.0
+
+Assumptions made in making this pipeline:
+* samples were already demultiplexed, (true, cuz reads split into individual per-sample fastq files)
+* adapters were removed, 
+* and sequences paired (??? only one fastq files, no read 1/2 aka read f/r)
+prior to sending fastq sequences
+
+### 
