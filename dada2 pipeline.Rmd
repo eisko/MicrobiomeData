@@ -5,10 +5,11 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(dada2)
-library(ggplot2)
-library(tidyr)
-library(dplyr)
+library("dada2")
+library("ggplot2")
+library("tidyr")
+library("dplyr")
+library("stringr")
 ```
 
 ## Dada2 Pipeline
@@ -23,4 +24,54 @@ Assumptions made in making this pipeline:
 * and sequences paired (??? only one fastq files, no read 1/2 aka read f/r)
 prior to sending fastq sequences
 
-### 
+### Define paths
+
+```{r}
+# create list of sample locations
+path <- "/Users/iskoec/code/Stool/MS0051-MMAmouse"
+samples <- sort(list.files(path, pattern = ".fastq", full.names = TRUE))
+samples
+
+```
+
+
+```{r}
+# create list of sample names
+sample.names <- sapply(strsplit(basename(samples), ".fastq"), `[`, 1)
+sample.names
+```
+
+
+
+### Inspect read quality profiles
+```{r}
+plotQualityProfile(samples[1:2])
+```
+
+
+### Filter and trim
+***note:*** had trouble running learn/plot errors bc had non A/C/T/G in seqs
+
+
+```{r}
+# Place filtered files in filtered/ subdirectory
+filtSamples <- file.path(path, "filtered", paste0(sample.names, "filt.fastq.gz"))
+filtSamples
+names(filtSamples) <- sample.names
+```
+
+
+```{r}
+out <- filterAndTrim(samples, filtSamples, maxN=0, compress = TRUE)
+head(out)
+```
+
+
+
+
+### Learn error rates
+```{r}
+err <- learnErrors(samples)
+plotErrors(err, nominalQ = TRUE)
+```
+
