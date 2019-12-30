@@ -10,7 +10,7 @@ library("ggplot2")
 library("tidyr")
 library("dplyr")
 library("stringr")
-setwd("~/code/Stool")
+
 ```
 
 ## Dada2 Pipeline
@@ -84,17 +84,24 @@ saveRDS(err, "~/code/Stool/err.rds")
 ```
 
 
-
-
-
-## START HERE - DON'T HAVE TO REGENERATE/RECALCULATE FILTERING AND ERROR
+## START HERE - LOAD IN PROGRESS
 ```{r}
 filtSamples <- readRDS("~/code/Stool/filtSamples.rds")
 err <- readRDS("~/code/Stool/err.rds")
-plotErrors(err, nominalQ = TRUE)
 ```
 
 
+
+### (Re)Inspect error
+```{r}
+plotErrors(err, nominalQ = TRUE)
+```
+
+Errors look good. Errors decrease as quality increases (as expected). Looks reasonable like in tutorial (see online tutorial).
+
+## Sample Inference
+
+Following is the main/core dada algorithm:
 
 
 
