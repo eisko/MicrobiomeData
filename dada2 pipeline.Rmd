@@ -10,6 +10,7 @@ library("ggplot2")
 library("tidyr")
 library("dplyr")
 library("stringr")
+setwd("~/code/Stool")
 ```
 
 ## Dada2 Pipeline
@@ -71,7 +72,30 @@ head(out)
 
 ### Learn error rates
 ```{r}
-err <- learnErrors(samples)
+# takes about 10 mins to run
+err <- learnErrors(filtSamples)
 plotErrors(err, nominalQ = TRUE)
 ```
+
+### save progress, so don't have to rerun
+```{r}
+saveRDS(filtSamples, "~/code/Stool/filtSamples.rds")
+saveRDS(err, "~/code/Stool/err.rds")
+```
+
+
+
+
+
+## START HERE - DON'T HAVE TO REGENERATE/RECALCULATE FILTERING AND ERROR
+```{r}
+filtSamples <- readRDS("~/code/Stool/filtSamples.rds")
+err <- readRDS("~/code/Stool/err.rds")
+plotErrors(err, nominalQ = TRUE)
+```
+
+
+
+
+
 
