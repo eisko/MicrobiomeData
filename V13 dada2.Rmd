@@ -1,0 +1,170 @@
+---
+title: "V1-3 Dada2 Processing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("dada2")
+library("ggplot2")
+library("tidyr")
+library("dplyr")
+library("stringr")
+
+```
+
+## Dada2 Pipeline
+
+See [dada2 github](https://benjjneb.github.io/dada2/index.html) for more details including tutorial (used to construct this pipeline).
+
+Note, loaded dada2 from anaconda cloud, v1.14.0
+
+Assumptions made in making this pipeline:
+* samples were already demultiplexed, (true, cuz reads split into individual per-sample fastq files)
+* adapters were removed 
+* and sequences remain unpaired (forward and reverse reads seperate)
+
+### Define paths
+
+```{r}
+# create list of sample locations
+path <- "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse"
+samples <- sort(list.files(path, pattern = ".fastq.gz", full.names = TRUE))
+samples
+
+```
+
+
+```{r}
+# extract forward and reverse fastq filenames
+fnFs <- sort(list.files(path, pattern = ".R1.catrim.fastq.gz", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern = ".R2.catrim.fastq.gz", full.names = TRUE))
+
+# Extract sample names, assuming filenames have format: SAMPLENAME.XXX.fastq.gz
+sample.names <- sapply(strsplit(basename(fnFs), ".R1"), `[`, 1)
+sample.names
+```
+
+
+
+### Inspect read quality profiles
+```{r}
+# inspect quality for forward reads
+plotQualityProfile(fnFs[1:2])
+```
+
+```{r}
+# inspect quality for reverse reads
+plotQualityProfile(fnRs[1:2])
+```
+
+
+
+### Filter and trim
+
+
+```{r}
+# Place filtered files in filtered/ subdirectory
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+```
+
+
+```{r}
+# takes awhile - not sure, maybe 10 mins?
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE)
+head(out)
+```
+
+# inspect quality of filtered data
+
+```{r}
+plotQualityProfile(filtFs[1:2])
+plotQualityProfile(filtRs[1:2])
+```
+
+### Learn error rates
+```{r}
+# takes about 10 mins to run
+errF <- learnErrors(filtFs)
+errR <- learnErrors(filtRs)
+```
+
+### inspect errors
+```{r}
+plotErrors(errR, nominalQ = TRUE)
+```
+
+
+
+### save progress, so don't have to rerun
+```{r}
+saveRDS(filtFs, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/filtFs.rds")
+saveRDS(errF, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/errF.rds")
+saveRDS(filtRs, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/filtRs.rds")
+saveRDS(errR, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/errR.rds")
+```
+
+
+## START HERE - LOAD IN PROGRESS
+```{r}
+filtFs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/filtFs.rds")
+errF <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/errF.rds")
+filtRs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/filtRs.rds")
+errR <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/errR.rds")
+```
+
+
+
+### (Re)Inspect error
+```{r}
+plotErrors(errF, nominalQ = TRUE)
+plotErrors(errR, nominalQ = TRUE)
+```
+
+Errors look good. Errors decrease as quality increases (as expected). Looks similar to tutorial (see online tutorial). Red = predicted error from Q score, black line = learned error rate from reads that will be used for sample inference/dada algoritmh
+
+## Sample Inference
+
+Following is the main/core dada algorithm:
+```{r}
+dadaFs <- dada(filtFs, err=errF, multithread = TRUE)
+```
+
+```{r}
+dadaRs <- dada(filtRs, err = errR, multithread = TRUE)
+```
+
+```{r}
+# inspect element
+dadaFs[[1]]
+# to see more to dada-class return object see `help("dada-class")`
+# can pool samples - don't think would want to? or use for low quality/low abundance samples?
+```
+
+### save progress
+```{r}
+saveRDS(dadaFs, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaFs.RDS")
+saveRDS(dadaRs, "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaRs.RDS")
+
+```
+
+### NOW START HERE - load in dada objects
+```{r}
+dadaFs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaFs.RDS")
+dadaRs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaRs.RDS")
+```
+
+
+
+## Merge paired reads
+- reverse/forward denoised reads only merged into 'contig' sequences if forward and reverse reads overlap by at least 12 bases and are identical to each other in the overlap region
+```{r}
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
+head(mergers[[1]])
+```
+
