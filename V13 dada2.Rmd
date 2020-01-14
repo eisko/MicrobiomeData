@@ -210,10 +210,10 @@ dim(seqtab.nochim)
 
 ### START HERE!!!###
 ```{r}
-saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/setab.nochim.RDS")
+saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
 ```
 ```{r}
-seqtab.nochim <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/setab.nochim.RDS")
+seqtab.nochim <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
 ```
 
 
@@ -270,13 +270,21 @@ Uses machine learning to assign taxonomy. Learns on reference training set and u
 Dada2 maintains formatted training fastas for this set
 https://benjjneb.github.io/dada2/training.html
 Using Silva version 132 for the following
-
+Start: 4:32 pm, end:4:52
 ```{r}
-taxa <- assignTaxonomy(seqtab.nochim, "~/code/Stool/silva_nr_v132_train_set.fa.gz", multithread = TRUE)
+taxa <- assignTaxonomy(seqtab.nochim, "~/code/Stool/silva_nr_v132_train_set.fa", multithread = TRUE, tryRC=TRUE)
 ```
-
+... not sure how long this step took, at least 15 mins, maybe more
 can also add extension of spcies level assignment
 taxa <- addSpecies(taxa, "~/code/Stool/silva_species_assignment_v132.fa.gz")
+
+### START HERE!!! ###
+```{r}
+saveRDS(taxa, file = "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/taxa.RDS")
+```
+```{r}
+taxa <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/taxa.RDS")
+```
 
 
 ```{r}
@@ -298,3 +306,7 @@ library(DECIPHER)
 ```
 
 ## PCA on samples using seqtable
+```{r}
+pca <- prcomp(seqtab.nochim)
+```
+
