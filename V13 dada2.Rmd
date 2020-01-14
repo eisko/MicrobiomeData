@@ -74,9 +74,9 @@ names(filtRs) <- sample.names
 
 ```{r}
 # takes awhile - not sure, maybe 10 mins?
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(250,200),
-              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
-              compress=TRUE, multithread=TRUE)
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
+                      maxN=0, maxEE=c(2,4), truncQ=2, rm.phix=TRUE,
+                      compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 ```
 
@@ -162,7 +162,139 @@ dadaRs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaRs.RDS")
 ## Merge paired reads
 - reverse/forward denoised reads only merged into 'contig' sequences if forward and reverse reads overlap by at least 12 bases and are identical to each other in the overlap region
 ```{r}
+#used defaults settings for mergePairs: minOverlap = 12, maxMismatch = 0 (no mismatches allowed)
+# Sean also uses minOverlap=10, maxMismatch = 1, which is less strict but may results in ASVs with indels
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
 head(mergers[[1]])
 ```
 
+
+### START HERE!!!!! ####
+```{r}
+# save progress
+saveRDS(mergers, file = "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers.RDS")
+```
+
+```{r}
+# read in mergers files
+mergers <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers.RDS")
+```
+
+
+
+
+## Construct sequence (ASV) table
+
+The sequence table is a matrix, 
+rows = samples
+columns = seq variants (as in ACTG sequencs of ASV)
+```{r}
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+```
+# this table contains 9176 ASVs and 96 samples???
+
+
+```{r}
+#Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+
+seqlengths <- table(nchar(getSequences(seqtab)))
+```
+## Remove Chimeras
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method = "consensus", multithread = TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+
+```
+
+### START HERE!!!###
+```{r}
+saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/setab.nochim.RDS")
+```
+```{r}
+seqtab.nochim <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/setab.nochim.RDS")
+```
+
+
+
+Seems like majority are identified as bimera sequences, better to be more strict during mergePairs???
+- according to dada2 tutorial, not uncommon that a majority of sequence variants are to be removed after this step
+```{r}
+sum(seqtab.nochim)/sum(seqtab)
+```
+Retained majority of reads - so will continue on with tutorial
+
+## Track reads through the pieline
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+# If processing a single samp;le, remove the sapply calls: e.g. replace sapply(dadaFs, getN), with getN(dadaFs)
+
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+
+```{r}
+# look at same table but in terms of percentage of input
+track_percent <- track/track[,1]*100
+head(track_percent)
+```
+What is shown in tutorial:
+Raw:
+SampleNames input filtered denoisedF denoisedR merged nonchim
+F3D0    7793     7113      6976      6979   6540    6528
+F3D1    5869     5299      5227      5239   5028    5017
+F3D141  5958     5463      5331      5357   4986    4863
+F3D142  3183     2914      2799      2830   2595    2521
+F3D143  3178     2941      2822      2867   2552    2518
+F3D144  4827     4312      4151      4228   3627    3488
+
+Percent:
+input filtered denoisedF denoisedR   merged  nonchim
+1   100 91.27422  89.51623  89.55473 83.92147 83.76748
+2   100 90.28795  89.06117  89.26563 85.67047 85.48305
+3   100 91.69184  89.47633  89.91272 83.68580 81.62135
+4   100 91.54885  87.93591  88.90983 81.52686 79.20201
+5   100 92.54248  88.79799  90.21397 80.30208 79.23222
+6   100 89.33085  85.99544  87.59064 75.13984 72.26020
+
+
+
+## Assign taxonomy
+Uses machine learning to assign taxonomy. Learns on reference training set and uses naive Bayesian classifier method to assign taxonomy of unknown samples/sequences based on reference
+
+**This is where reference used could matter!!!**
+
+Dada2 maintains formatted training fastas for this set
+https://benjjneb.github.io/dada2/training.html
+Using Silva version 132 for the following
+
+```{r}
+taxa <- assignTaxonomy(seqtab.nochim, "~/code/Stool/silva_nr_v132_train_set.fa.gz", multithread = TRUE)
+```
+
+can also add extension of spcies level assignment
+taxa <- addSpecies(taxa, "~/code/Stool/silva_species_assignment_v132.fa.gz")
+
+
+```{r}
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+### Assign taxa using DECIPHER
+
+Tutorial also sets up alternative using DECIPHER or IDTAXA algorithm, which should perform better than the naive Bayesian classifier:
+
+(need to download alternative format database to run)
+```{r}
+library(DECIPHER)
+```
+```{r}
+
+```
+
+## PCA on samples using seqtable
