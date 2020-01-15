@@ -10,6 +10,7 @@ library("ggplot2")
 library("tidyr")
 library("dplyr")
 library("stringr")
+library("factoextra")
 
 ```
 
@@ -208,7 +209,7 @@ dim(seqtab.nochim)
 
 ```
 
-### START HERE!!!###
+### START HERE!!!### seqtab.nochim
 ```{r}
 saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
 ```
@@ -308,5 +309,13 @@ library(DECIPHER)
 ## PCA on samples using seqtable
 ```{r}
 pca <- prcomp(seqtab.nochim)
+```
+
+```{r}
+fviz_eig(pca)
+```
+
+```{r}
+fviz_pca_ind(pca)
 ```
 
