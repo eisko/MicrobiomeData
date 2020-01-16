@@ -5,27 +5,133 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(phyloseq)
-library(Biostrings)
-library(ggplot2)
+library("phyloseq")
+library("Biostrings")
+library("ggplot2")
+library("readxl")
+library("tidyverse")
+
+setwd("~/code/Stool")
+
+theme_set(theme_bw()) # optional, adjusts ggplot2 theme
 ```
 
-## R Markdown
+Following last part of dada2 tutorial see:
+https://benjjneb.github.io/dada2/tutorial.html
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+create dataframe with pdata
+```{r}
+# samdf = pData for samples
+samdf <- read.csv("~/code/Stool/MS0067_MMAMicro/pData_MMAMicro.csv")
+seqtab.nochim <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
+taxa <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/taxa.RDS")
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+Match sample names across tables
+*** note: rownames must be sample names for all tables for phyloseq!***
+```{r}
+samples.out <- rownames(seqtab.nochim)
+rownames(samdf) <- samples.out
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows = FALSE),
+               sample_data(samdf),
+               tax_table(taxa))
+```
+
+*** Seperate phylo object into experiments? ***
+
+
+Rename taxa to a short string and save ASVs in refseq slot
+```{r}
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+```
+
+
+
+# Visualize alpha-diversity
+```{r}
+plot_richness(ps, x = "Experiment", measures=c("Shannon", "Simpson"), color="Experiment.Details")
+```
+
+# Ordinate?
+- had trouble here, possibly due to empty rows from water controls, removed controls: https://github.com/joey711/phyloseq/issues/851
+
+```{r}
+# transform data to proportions (relative abundances) as appropriate for Bray-Curtis distances 
+ps.ord <- subset_samples(ps, Experiment != "Control")
+ps.prop <- transform_sample_counts(ps.ord, function(otu) otu/sum(otu))
+ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
+```
+
+```{r}
+
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scale="free_x")
+```
+
+# Raw abundances
+```{r}
+ps.ab <- subset_samples(ps, Experiment%in%c("2_wk_vancomycin", "4_week_Cocktail", "Vancomycin_Redose"))
+plot_bar(ps.ab, x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scale="free_x")
+```
+
+# Relative abundances
+```{r}
+ps.ab.rel <- transform_sample_counts(ps.ab, function(OTU) OTU/sum(OTU))
+plot_bar(ps.ab.rel, x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scale="free_x")
+```
+
+# Subset taxa to those seen in previous experiment, and calculate relative abundances
+
+```{r}
+ps.rel <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.phyla <- subset_taxa(ps.rel, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "NA"))
+
+```
+
+
+
+# 4 Week Cocktail alone
+```{r}
+ps.4wk <- subset_samples(ps.phyla, Experiment == "4_week_Cocktail")
+ps.4wk.pData <- data.frame(sample_data(ps.4wk))
+p_4wk <- plot_bar(ps.4wk, x="Sample.ID", fill="Phylum")
+
+```
+
+```{r}
+p_4wk + 
+  facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.4wk.pData$Sample.ID, labels=ps.4wk.pData$Mouse.ID)
+  
+```
+
+
+
+# Vancomycin redose
+```{r}
+ps.revanc <- subset_samples(ps.phyla, Experiment == "Vancomycin_Redose")
+p_revanc <- plot_bar(ps.revanc, x="Sample.ID", fill="Phylum")
+p_revanc + labs(title="Vancomycin_Redose") + facet_wrap(~Experiment.Details, scale="free_x")
+p_4wk
+```
+
+2 Week Vancomycin
+```{r}
+ps.2wk <- subset_samples(ps.phyla, Experiment == "2_wk_vancomycin")
+p_2wk <- plot_bar(ps.2wk, x="Sample.ID", fill="Phylum")
+p_2wk + labs(title="2 week vancomycin Experiment", subtitle="RNAseq samples") + facet_wrap(~Experiment.Details, scale="free_x")
+p_2wk
+```
+
