@@ -1,0 +1,203 @@
+---
+title: "V13 cleaned all phyloseq"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("phyloseq")
+library("Biostrings")
+library("ggplot2")
+library("readxl")
+library("tidyverse")
+
+setwd("~/code/Stool")
+
+theme_set(theme_bw()) # optional, adjusts ggplot2 theme
+```
+
+Following last part of dada2 tutorial see:
+https://benjjneb.github.io/dada2/tutorial.html
+
+create dataframe with pdata
+```{r}
+# samdf = pData for samples
+samdf <- read.csv("~/code/Stool/MS0067_MMAMicro/pData_MMAMicro.csv")
+seqtab.nochim <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
+taxa <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/taxa.RDS")
+
+# Match sample names across tables
+samples.out <- rownames(seqtab.nochim)
+rownames(samdf) <- samples.out
+
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows = FALSE),
+               sample_data(samdf),
+               tax_table(taxa))
+
+```
+
+
+Rename taxa to a short string and save ASVs in refseq slot
+```{r}
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+```
+
+# Write out OTU table
+```{r}
+ps.otu <- as(otu_table(ps), "matrix")
+ps.otu <- as_data_frame(ps.otu)
+div <- estimate_richness(ps, measures="Shannon")
+csv_out <- cbind(div, ps.otu)
+write.csv(csv_out, "~/code/Stool/div_otu.csv")
+```
+
+
+
+```{r}
+# exclude sample that does not have reads
+ps <- prune_samples(sample_names(ps)!="VXV16421", ps)
+# exclude control and fish data
+ps <- subset_samples(ps, Experiment%in%c("2_wk_vancomycin", "4_week_Cocktail", "Vancomycin_Redose"))
+ps.pdata <- data.frame(sample_data(ps))
+ps.rel <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+
+# restrict phyla so graphs easier to read
+ps.phyla <- subset_taxa(ps, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "Fusobacteria", "Tenericutes"))
+ps.phyla.rel <- subset_taxa(ps.rel, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "Fusobacteria", "Tenericutes"))
+```
+
+# alpha diversity - all experiments
+```{r}
+alpha <- plot_richness(ps, x = "Experiment", measures=c("Chao1","Shannon", "Simpson"), color="Experiment.Details")
+alpha
+```
+```{r}
+ggsave("all_alpha.png", plot=alpha, path="~/code/Stool/pics", width=10, height=7)
+```
+
+
+
+# Beta diveristy - all experiments
+```{r}
+# transform data to proportions (relative abundances) as appropriate for Bray-Curtis distances 
+ps.ord <- subset_samples(ps, Experiment != "Control")
+ps.prop <- transform_sample_counts(ps.ord, function(otu) otu/sum(otu))
+ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
+p_ordin<- plot_ordination(ps.prop, ord.nmds.bray, color="Experiment.Details", title="Bray NMDS") + facet_wrap(~Experiment, scale="free_x")
+p_ordin
+```
+```{r}
+ggsave("all_beta.png", plot=p_ordin, path="~/code/Stool/pics", width=10, height=6)
+```
+
+
+
+# absolute abundance - all experiments
+```{r}
+ps.bar <- plot_bar(ps.phyla, x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scale="free_x")
+```
+```{r}
+ps.bar <- ps.bar + labs(title="All experiments - absolute", subtitle= "Absolute abundances", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.pdata$Sample.ID, labels=ps.pdata$Mouse.ID)
+ps.bar
+```
+```{r}
+ggsave("all_abund.png", plot = ps.bar, path="~/code/Stool/pics", width=10, height=6)
+```
+
+
+
+# relative abundance - all experiments
+```{r}
+ps.bar.rel <- plot_bar(ps.phyla.rel,  x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scale="free_x")
+```
+```{r}
+ps.bar.rel <-ps.bar.rel + labs(title="All experiments", subtitle = "Relative Abundances", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.pdata$Sample.ID, labels=ps.pdata$Mouse.ID)
+ps.bar.rel
+```
+```{r}
+ggsave("all_abund_rel.png", plot = ps.bar, path="~/code/Stool/pics", width=10, height=6)
+
+```
+
+
+
+
+# 4 wk cocktail
+```{r}
+ps.4wk <- subset_samples(ps.phyla, Experiment=="4_week_Cocktail")
+ps.4wk.pdata <- data.frame(sample_data(ps.4wk))
+ps.4wk.rel <- subset_samples(ps.phyla.rel, Experiment=="4_week_Cocktail")
+
+ps.4wk.bar <- plot_bar(ps.4wk, x="Sample.ID", fill="Phylum")
+ps.4wk.rel.bar <- plot_bar(ps.4wk.rel, x="Sample.ID", fill="Phylum")
+```
+## absolute abundance
+```{r}
+ps.4wk.bar <- ps.4wk.bar + facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.4wk.pdata$Sample.ID, labels=ps.4wk.pdata$Mouse.ID)
+ps.4wk.bar
+```
+```{r}
+ggsave("4wk_abund.png", plot = ps.4wk.bar, path="~/code/Stool/pics", width=10, height=7)
+```
+
+## relative abundance
+```{r}
+ps.4wk.rel.bar <- ps.4wk.rel.bar + facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.4wk.pdata$Sample.ID, labels=ps.4wk.pdata$Mouse.ID)
+ps.4wk.rel.bar
+```
+```{r}
+ggsave("4wk_abund_rel.png", plot = ps.4wk.rel.bar, path="~/code/Stool/pics", width=10, height=7)
+
+```
+
+
+
+
+# Redose vancomycin
+```{r}
+ps.redose <- subset_samples(ps.phyla, Experiment=="4_week_Cocktail")
+ps.redose.pdata <- data.frame(sample_data(ps.redose))
+ps.redose.rel <- subset_samples(ps.phyla.rel, Experiment=="4_week_Cocktail")
+
+ps.redose.bar <- plot_bar(ps.redose, x="Sample.ID", fill="Phylum")
+ps.redose.rel.bar <- plot_bar(ps.redose.rel, x="Sample.ID", fill="Phylum")
+```
+## absolute abundance
+```{r}
+ps.redose.bar <- ps.redose.bar + facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.redose.pdata$Sample.ID, labels=ps.redose.pdata$Mouse.ID)
+ps.redose.bar
+```
+```{r}
+ggsave("redose_abund.png", plot = ps.redose.bar, path="~/code/Stool/pics", width=10, height=7)
+
+```
+
+
+## relative abundance
+```{r}
+ps.redose.rel.bar <- ps.redose.rel.bar + facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.redose.pdata$Sample.ID, labels=ps.redose.pdata$Mouse.ID)
+ps.redose.rel.bar
+```
+```{r}
+ggsave("redose_abund_rel.png", plot = ps.redose.rel.bar, path="~/code/Stool/pics", width=10, height=7)
+
+```
+
+
+
+
+

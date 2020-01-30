@@ -1,0 +1,273 @@
+---
+title: "2wk vanc correlations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("phyloseq")
+library("Biostrings")
+library("ggplot2")
+library("readxl")
+library("tidyverse")
+library("reshape2")
+library("gridExtra")
+library("ggrepel")
+library("ggpubr")
+
+setwd("~/code/Stool")
+
+theme_set(theme_bw()) # optional, adjusts ggplot2 theme
+```
+
+
+```{r, include=FALSE}
+# read in saved files
+ps.2wkvanc <- readRDS("~/code/Stool/ps_2wkvanc.RDS")
+
+```
+
+
+
+# Just 2wk dataset
+```{r}
+# "Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia"
+actino.2wk <- subset_taxa(ps.2wkvanc, Phylum=="Actinobacteria")
+bact.2wk <- subset_taxa(ps.2wkvanc, Phylum=="Bacteroidetes")
+firm.2wk <- subset_taxa(ps.2wkvanc, Phylum=="Firmicutes")
+proteo.2wk <- subset_taxa(ps.2wkvanc, Phylum=="Proteobacteria")
+verru.2wk <- subset_taxa(ps.2wkvanc, Phylum=="Verrucomicrobia")
+
+```
+
+
+```{r}
+sum.2wkvanc <- estimate_richness(ps.2wkvanc, measures = c("Choa1", "Shannon", "Simpson"))
+actino.sums <- as(sample_sums(actino.2wk),"matrix")
+bact.sums <- as(sample_sums(bact.2wk),"matrix")
+firm.sums <- as(sample_sums(firm.2wk),"matrix")
+proteo.sums <- as(sample_sums(proteo.2wk),"matrix")
+verru.sums <- as(sample_sums(verru.2wk),"matrix")
+taxasums <- as(sample_sums(ps.2wkvanc), "matrix")
+
+allsums <- cbind(actino.sums, bact.sums, firm.sums, proteo.sums, verru.sums, taxasums)
+allsums <- as.data.frame(allsums)
+names(allsums) <- c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "All")
+allsums
+```
+
+# relative
+create alternative see if relative valuse change anything
+```{r}
+taxasums <- as(sample_sums(ps.2wkvanc), "matrix")
+relsums <- allsums/taxasums
+relsums
+```
+
+
+
+
+
+```{r}
+div.2wk <- estimate_richness(ps.2wkvanc, measures = c("Chao1", "Shannon", "Simpson"))
+div.2wk
+
+pdata.2wk <- sample_data(ps.2wkvanc)
+pdata.2wk
+```
+```{r}
+# combine pdata with richness/diversity data
+pdiv.2wk <- cbind(pdata.2wk, div.2wk)
+# clear row names (row names are auto set to sample id, but there's a column for that)
+row.names(pdiv.2wk) <- NULL
+# drop unnessary columns
+pdiv.2wk <- select(pdiv.2wk, -Experiment, -Condition, -Genotype, -Collection.Date, -Sex)
+pdiv.2wk
+```
+
+```{r}
+csv_out <- cbind(pdiv.2wk, allsums)
+rel_out <- cbind(pdiv.2wk, relsums)
+
+row.names(csv_out) <- NULL
+row.names(rel_out) <- NULL
+
+csv_out
+rel_out
+
+write.csv(csv_out, "~/code/Stool/csv/2wk_corr_start.csv", quote=FALSE)
+write.csv(rel_out, "~/code/Stool//csv/2wk_rel_start.csv", quote=FALSE)
+
+```
+
+
+*******************************************************
+# START HERE!!!
+*******************************************************
+
+```{r}
+# Read in delta data of div and bacteria counts
+deltas <- read.csv("~/code/Stool/csv/2wk_corr_deltas.csv")
+reldeltas <- read.csv("~/code/Stool/csv/2wk_rel_deltas.csv")
+
+
+# read in pheno data of mice (includes raw values and deltas)
+pheno.2wk <- read.csv("~/code/Stool/csv/2wk_pheno.csv")
+
+
+# and clean combine pheno data with other delta datas
+pheno.2wk <- select(pheno.2wk, -MMA.baseline, -MMA.2wk, -Fgf21.baseline, -Fgf21.2wk, -Weight.baseline, -Weight.2wk)
+deltas <- select(deltas, -se.chao1)
+reldeltas <- select(reldeltas, -se.chao1)
+
+all_data <- left_join(pheno.2wk, deltas, by="Mouse.ID")
+all_data_rel <- left_join(pheno.2wk, reldeltas, by="Mouse.ID")
+all_data
+all_data_rel
+```
+
+```{r}
+# all_data <- select(all_data, -MMA.baseline, -MMA.2wk, -Fgf21.baseline, -Fgf21.2wk, -Weight.baseline, -Weight.2wk, -se.chao1)
+names(all_data)
+```
+
+# correlation metrix - raw abundances
+```{r}
+# correlation matrix
+pairs(all_data)
+
+png(filename="~/code/Stool/pics/2wk_correlation_matrix.png", height=10, width=10, units="in", res=300)
+pairs(all_data)
+dev.off()
+```
+
+# correlation matrix - relative abundances
+```{r}
+# correlation matrix
+pairs(all_data_rel)
+
+png(filename="~/code/Stool/pics/2wk_rel_correlation_matrix.png", height=10, width=10, units="in", res=300)
+pairs(all_data_rel)
+dev.off()
+```
+
+
+
+
+
+```{r}
+b <- ggplot(deltas, aes(x=Shannon, y=Bacteroidetes)) +
+  geom_point() +
+  geom_label(label=deltas$Mouse.ID, size=3, nudge_x = -0.2, nudge_y = 750)
+  
+b
+```
+
+
+```{r}
+p <- ggplot(deltas, aes(x=Shannon, y=Proteobacteria)) +
+  geom_point(size=5) +
+  # geom_label(label=deltas$Mouse.ID, size=3, nudge_x = -0.2, nudge_y = 750)
+  geom_text_repel(label=deltas$Mouse.ID, size=5)+
+  geom_smooth(method=lm, linetype="dashed", color="darkred") #+
+  # stat_regline_equation
+  
+p
+```
+
+ggscatter(df, x = "wt", y = "mpg",
+   color = "black", shape = 21, size = 3, # Points color, shape and size
+   add = "reg.line",  # Add regressin line
+   add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")
+   )
+
+```{r}
+lnreg <- ggscatter(all_data, x=micros[1], y=phenos[1], 
+                   size = 5, color= colors[1],
+                  add = "reg.line",  # Add regressin line
+                  add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+                   conf.int = FALSE, # Add confidence interval
+                   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+                   cor.coeff.args = list(method = "pearson", label.sep = "\n"),
+                  cor.coef.size = 5,
+                  
+                  ) +
+     ggtitle(paste0(phenos[1], " x ", micros[1])) +
+     theme(plot.title = element_text(hjust = 0.5, size=24))+
+     geom_text_repel(label=all_data$Experiment.Details, size=3)
+
+lnreg
+```
+
+
+
+
+
+
+```{r}
+br <- ggplot(reldeltas, aes(x=Shannon, y=Bacteroidetes)) +
+  geom_point()# +
+  # geom_label(label=reldeltas$Mouse.ID, size=3, nudge_x = -0.2, nudge_y = 750)
+  
+br
+```
+
+
+```{r}
+pr <- ggplot(reldeltas, aes(x=Shannon, y=Proteobacteria)) +
+  geom_point()# +
+  # geom_label(label=reldeltas$Mouse.ID, size=3, nudge_x = -0.2, nudge_y = 750)
+  
+pr
+```
+
+
+
+
+
+**************************************************************************************
+# Automate graph making process
+**************************************************************************************
+
+```{r}
+phenos <- c("MMA.delta", "Fgf21.delta", "Weight.delta")
+micros <- c("Shannon", "Simpson", "Chao1", "Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "All")
+colors <- c("black", "dimgrey", "grey", "#F8766D", "#C49A01", "#53B400", "#01B6EB", "#FB60D7", "brown"
+)
+```
+
+
+# create correlation graphs
+```{r}
+for (i in seq_along(phenos)){
+  for (j in seq_along(micros)){
+   plot <- ggplot(all_data, aes_string(x=micros[j], y=phenos[i])) +
+     geom_point(color=colors[j], size=5) +
+     geom_text_repel(label=all_data$Mouse.ID, size=5) +
+     ggtitle(paste0(phenos[i], " x ", micros[j])) +
+     theme(plot.title = element_text(hjust = 0.5, size=24))
+   
+   ggsave(plot, file=paste0("~/code/Stool/pics/correl_pics/", phenos[i], "_", micros[j], ".png"))
+  }
+}
+```
+
+
+for (i in seq_along(gois)) {
+
+  plot <- ggplot(filter(labeled_gois_FPKM, gene == gois[i]), aes(x=group, y = FPKM, fill=group)) +
+    stat_summary(geom = "bar", fun.y = mean, position = "dodge") +
+    stat_summary(geom = "errorbar", fun.data = mean_se, position = "dodge", width = 0.2)  +
+    stat_compare_means()+
+    stat_compare_means(comparisons = my_comparisons, label = "p.signif")+
+    theme_classic()+
+    scale_fill_manual(values=colors) +
+    ggtitle(gois[i]) +
+    theme(plot.title = element_text(hjust = 0.5, size=24))
+
+  ggsave(plot, file=paste("/Users/iskoec/code/qPCR_FPKM/pics/", gois[i], "_FPKM.tiff", sep=""))
+  
+  }

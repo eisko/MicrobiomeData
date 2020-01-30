@@ -1,0 +1,268 @@
+---
+title: "V13 2wk vanc"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("phyloseq")
+library("Biostrings")
+library("ggplot2")
+library("readxl")
+library("tidyverse")
+library("reshape2")
+library("gridExtra")
+
+setwd("~/code/Stool")
+
+theme_set(theme_bw()) # optional, adjusts ggplot2 theme
+```
+
+Following last part of dada2 tutorial see:
+https://benjjneb.github.io/dada2/tutorial.html
+
+Read in data from dada2 pipeline
+```{r}
+# samdf = pData for samples
+samdf <- read.csv("~/code/Stool/MS0067_MMAMicro/pData_MMAMicro.csv")
+seqtab.nochim <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
+taxa <- readRDS("~/code/Stool/MS0067_MMAMicro/mouse/taxa.RDS")
+
+# Match sample names across tables
+# note: rownames must be sample names for all tables for phyloseq!***
+samples.out <- rownames(seqtab.nochim)
+rownames(samdf) <- samples.out
+
+
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows = FALSE),
+               sample_data(samdf),
+               tax_table(taxa))
+```
+
+*** Seperate phylo object into experiments? ***
+
+
+Rename taxa to a short string and save ASVs in refseq slot
+```{r}
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+
+# # exclude sample that does not have reads
+# ps <- prune_samples(sample_names(ps)!="VXV16421", ps)
+# ps
+```
+
+# Subset data to 2 wk vancomycin experiment
+```{r}
+ps.2wkvanc <- subset_samples(ps, Experiment == "2_wk_vancomycin")
+ps.2wk.pData <- sample_data(ps.2wkvanc)
+
+```
+
+
+# Write out otu table for 2wk vanc
+```{r}
+otu.2wk <- as.data.frame(as(otu_table(ps.2wkvanc), "matrix"))
+div.2wk <- estimate_richness(ps.2wkvanc, measure="Shannon")
+csv_2wk <- cbind(div.2wk,otu.2wk)
+write.csv(csv_2wk, file="~/code/Stool/2wk_div_otu.csv", quote=FALSE)
+
+```
+
+
+
+# Visualize alpha-diversity
+```{r}
+p_alpha <- plot_richness(ps.2wkvanc, x = "Experiment.Details", measures=c("Chao1", "Shannon", "Simpson"), color="Experiment.Details", shape="Sex") +
+  geom_line(aes(group = Mouse.ID), colour = "black") +
+  labs(x="Experiment Timepoint")
+p_alpha
+```
+# write out png
+```{r}
+ggsave("2wkvanc_alpha.png", plot=p_alpha, path="~/code/Stool/pics", height = 4, width=6)
+```
+
+
+```{r}
+p_alpha_labs2 <- p_alpha + geom_label(mapping = aes(label=Mouse.ID), size=1)
+p_alpha_labs2
+```
+
+
+```{r}
+p_alpha_labs <- plot_richness(ps.2wkvanc, x = "Experiment.Details", measures=c( "Shannon"), color="Experiment.Details", shape="Sex") +
+  geom_line(aes(group = Mouse.ID), colour = "black") +
+  labs(x="Experiment Timepoint") + 
+  geom_label(label="2982/7368 F1 -/-", x=1.75, y=2.15, size=2, color="black", fill="#00BA38")
+p_alpha_labs
+```
+# write out png
+```{r}
+ggsave("2wkvanc_alpha_lab.png", plot=p_alpha_labs, path="~/code/Stool/pics", height = 4, width=3.55)
+```
+
+
+
+
+
+
+
+
+# check diversity of baseline values
+```{r}
+ps.2wk.baseline <- subset_samples(ps.2wkvanc, Experiment.Details!="Treatment_wk2")
+palpha_base <- plot_richness(ps.2wk.baseline, x = "Experiment.Details", measures="Shannon", color="Experiment.Details", shape="Sex", title="Shannon Index") +
+  facet_wrap(~Mouse.ID)
+palpha_base
+```
+
+
+
+
+
+# output alpha diversity
+```{r}
+adiv <- estimate_richness(ps.2wkvanc, measures = c("Shannon", "Simpson"))
+adiv
+```
+```{r}
+ps.prop <- transform_sample_counts(ps.2wkvanc, function(otu) otu/sum(otu))
+ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
+```
+```{r}
+p_ordin<- plot_ordination(ps.prop, ord.nmds.bray, color="Experiment.Details", title="Bray NMDS", shape = "Sex")
+p_ordin
+```
+# save pic
+```{r}
+ggsave("2wkvanc_beta.png", plot = p_ordin, path = "~/code/Stool/pics", width=6, height=4)
+```
+
+
+# label outlier
+```{r}
+p_ordin_lab <- plot_ordination(ps.prop, ord.nmds.bray, color="Experiment.Details", title="Bray NMDS", shape = "Sex") +
+  geom_text(mapping = aes(label=Mouse.ID), size = 2.5, hjust = 0, nudge_x = -1000)
+p_ordin_lab
+```
+
+```{r}
+p_ordin_outlier <- plot_ordination(ps.prop, ord.nmds.bray, color="Experiment.Details", title="Bray NMDS", shape = "Sex")+
+  geom_label(label="2982/7368 F1 -/-", x=1800, y=0.085, size=2, color="black", fill="#00BA38")
+p_ordin_outlier
+```
+
+# save pic
+```{r}
+ggsave("2wkvanc_beta_outlier.png", plot = p_ordin_outlier, path = "~/code/Stool/pics", width=6, height=4)
+```
+
+
+
+
+
+
+
+
+
+
+# Absolute abundances
+```{r}
+abs <- plot_bar(ps.2wkvanc, x="Sample.ID", fill="Phylum")
+```
+# show graph
+```{r}
+abs <- abs + facet_wrap(~Experiment.Details, scale="free_x") +
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)+
+  labs(x="Mouse ID")
+abs
+```
+# save pic
+```{r}
+ggsave(file="2wkvanc_abs_abund.png", plot = abs, path="~/code/Stool/pics", width = 10, height=7)
+```
+
+
+
+
+
+# relative abundances
+```{r}
+ps.2wk.rel <- transform_sample_counts(ps.2wkvanc, function(OTU) OTU/sum(OTU))
+rel <- plot_bar(ps.2wk.rel, x="Sample.ID", fill="Phylum")
+```
+# relative abundance graph adjustments
+```{r}
+rel <- rel + facet_wrap(~Experiment.Details, scale="free_x") +
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)
+rel
+```
+
+# Restrict output to 5 phyla
+See following link for script function to easily extract abundances from phyloseq object:
+https://rdrr.io/github/microbiome/microbiome/src/R/abundances.R
+```{r}
+ps.phyla <- subset_taxa(ps.2wkvanc, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia"))
+
+startSums <- data.frame(sample_sums(ps.2wkvanc))
+endSums <- data.frame(sample_sums(ps.phyla))
+start_end <- cbind(startSums, endSums)
+
+start_end <- mutate(start_end, percent.change = (sample_sums.ps.phyla.-sample_sums.ps.2wkvanc.)/sample_sums.ps.phyla.*100)
+start_end
+
+hist(start_end$percent.change)
+
+df_print <- cbind(ps.2wk.pData$Mouse.ID, ps.2wk.pData$Experiment.Details, start_end)
+names(df_print) <- c("Mouse ID", "Treatment Timepoint", "Raw Sample Sums", "Pruned Sample Sums", "Percent Change")
+df_print
+```
+# save df for ppt
+```{r}
+png(filename = "~/code/Stool/pics/pruned_nums.png", width=9.5, height=7.5, units="in", res=300)
+grid.table(df_print)
+dev.off()
+```
+
+
+# Absolute abundances
+```{r}
+abs_phyla <- plot_bar(ps.phyla, x="Sample.ID", fill="Phylum")
+```
+# show graph
+```{r}
+abs_phyla <- abs_phyla + facet_wrap(~Experiment.Details, scale="free_x") +
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)+
+  labs(x="Mouse ID")
+abs_phyla
+```
+```{r}
+ggsave("2wkvanc_abs_phyla_abund.png", plot=abs_phyla, path = "~/code/Stool/pics", width = 10, height=7)
+```
+
+
+
+
+# relative abundances
+```{r}
+ps.2wk.rel <- transform_sample_counts(ps.phyla, function(OTU) OTU/sum(OTU))
+rel_phyla <- plot_bar(ps.2wk.rel, x="Sample.ID", fill="Phylum")
+```
+# relative abundance graph adjustments
+```{r}
+rel_phyla <- rel_phyla + facet_wrap(~Experiment.Details, scale="free_x") +
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)+
+  labs(x="Mouse ID")
+rel_phyla
+```
+
+```{r}
+ggsave("2wkvanc_rel_phyla_abund.png", plot=rel_phyla, path = "~/code/Stool/pics", width = 10, height=7)
+```
+
+
+

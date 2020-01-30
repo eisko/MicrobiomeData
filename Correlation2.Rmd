@@ -1,0 +1,135 @@
+---
+title: "Correlation 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("phyloseq")
+library("Biostrings")
+library("ggplot2")
+library("readxl")
+library("tidyverse")
+library("reshape2")
+library("gridExtra")
+library("ggrepel")
+library("ggpubr")
+
+setwd("~/code/Stool")
+
+theme_set(theme_bw()) # optional, adjusts ggplot2 theme
+```
+
+```{r}
+all_data <- read.csv("~/code/Stool/csv/2wk_all_datas.csv")
+deltas <- read.csv("~/code/Stool/csv/2wk_pheno.csv")
+
+all_data <- cbind(all_data, deltas$Weight.delta)
+names(all_data)[17] <- "Delta.Weights"
+
+all_data
+```
+
+
+# correlation metrix - raw abundances
+```{r}
+# correlation matrix
+pairs(all_data)
+
+png(filename="~/code/Stool/pics/correl_pics2/2wk_correlation_matrix.png", height=10, width=10, units="in", res=300)
+pairs(all_data)
+dev.off()
+```
+
+
+
+
+```{r}
+phenos <- c("MMA", "Fgf21", "Delta.Weights")
+micros <- c("Shannon", "Simpson", "Chao1", "Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "All")
+colors <- c("black", "dimgrey", "grey", "#F8766D", "#C49A01", "#53B400", "#01B6EB", "#FB60D7", "brown"
+)
+```
+
+```{r}
+all_data <- select(all_data, -Weight)
+dim(all_data)
+```
+
+
+# create correlation graphs
+```{r}
+for (i in seq_along(phenos)){
+  for (j in seq_along(micros)){
+   plot <- ggscatter(all_data, x=micros[j], y=phenos[i], 
+                   size = 5, color= colors[j],
+                  add = "reg.line",  # Add regressin line
+                  add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+                   conf.int = FALSE, # Add confidence interval
+                   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+                   cor.coeff.args = list(method = "pearson", label.sep = "\n"),
+                  cor.coef.size = 5,
+                  
+                  ) +
+     ggtitle(paste0(phenos[i], " x ", micros[j])) +
+     theme(plot.title = element_text(hjust = 0.5, size=24))+
+     geom_text_repel(label=deltas$Experiment.Details, size=5)
+   
+   ggsave(plot, file=paste0("~/code/Stool/pics/correl_pics2/", phenos[i], "_", micros[j], ".png"))
+  }
+}
+```
+
+
+
+
+***********************************************************************************************************************************
+# For calculating delta weights
+- Note: did not see any significant effects
+***********************************************************************************************************************************
+
+```{r}
+all_data <- read.csv("~/code/Stool/csv/2wk_all_datas.csv")
+deltas <- read.csv("~/code/Stool/csv/2wk_pheno.csv")
+```
+
+```{r}
+
+delta_weights <- all_data[9:16,]
+delta_weights[,6] <- deltas$Weight.delta
+names(delta_weights)[6] <- "Delta.Weights"
+delta_weights
+```
+
+```{r}
+phenos <- c("Delta.Weights")
+micros <- c("Shannon", "Simpson", "Chao1", "Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "All")
+colors <- c("black", "dimgrey", "grey", "#F8766D", "#C49A01", "#53B400", "#01B6EB", "#FB60D7", "brown"
+)
+```
+
+```{r}
+
+for (i in seq_along(phenos)){
+  for (j in seq_along(micros)){
+   plot <- ggscatter(delta_weights, x=micros[j], y=phenos[i], 
+                   size = 5, color= colors[j],
+                  add = "reg.line",  # Add regressin line
+                  add.params = list(color = "black", fill = "lightgray"), # Customize reg. line
+                   conf.int = FALSE, # Add confidence interval
+                   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+                   cor.coeff.args = list(method = "pearson", label.sep = "\n"),
+                  cor.coef.size = 5,
+                  
+                  ) +
+     ggtitle(paste0(phenos[i], " x ", micros[j])) +
+     theme(plot.title = element_text(hjust = 0.5, size=24))+
+     geom_text_repel(label=delta_weights$Experiment.Details, size=5)
+   
+   ggsave(plot, file=paste0("~/code/Stool/pics/correl_pics2/", phenos[i], "_", micros[j], ".png"))
+  }
+}
+```
+
+

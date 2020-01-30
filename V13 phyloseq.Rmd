@@ -52,16 +52,26 @@ names(dna) <- taxa_names(ps)
 ps <- merge_phyloseq(ps, dna)
 taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
 ps
+
+# exclude sample that does not have reads
+ps <- prune_samples(sample_names(ps)!="VXV16421", ps)
+ps
 ```
 
 
 
 # Visualize alpha-diversity
 ```{r}
-plot_richness(ps, x = "Experiment", measures=c("Shannon", "Simpson"), color="Experiment.Details")
+plot_richness(ps, x = "Experiment", measures=c("Chao1","Shannon", "Simpson"), color="Experiment.Details")
 ```
 
-# Ordinate?
+```{r}
+
+```
+
+
+
+# Ordinate -visualize beta diversity
 - had trouble here, possibly due to empty rows from water controls, removed controls: https://github.com/joey711/phyloseq/issues/851
 
 ```{r}
@@ -70,6 +80,13 @@ ps.ord <- subset_samples(ps, Experiment != "Control")
 ps.prop <- transform_sample_counts(ps.ord, function(otu) otu/sum(otu))
 ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
 ```
+
+```{r}
+p_ordin<- plot_ordination(ps.prop, ord.nmds.bray, color="Experiment.Details", title="Bray NMDS") + facet_wrap(~Experiment, scale="free_x")
+p_ordin
+```
+
+
 
 ```{r}
 
@@ -95,13 +112,35 @@ plot_bar(ps.ab.rel, x="Sample.ID", fill="Phylum") + facet_wrap(~Experiment, scal
 
 ```{r}
 ps.rel <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
-ps.phyla <- subset_taxa(ps.rel, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "NA"))
+ps.phyla <- subset_taxa(ps.rel, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "Fusobacteria", "Tenericutes"))
 
 ```
 
 
 
 # 4 Week Cocktail alone
+## absolute abundance
+```{r}
+ps.ab.4wk <- subset_samples(ps, Experiment=="4_week_Cocktail")
+ps.ab.4wk.df <- data.frame(sample_data(ps.ab.4wk))
+ps.phyla.4wk <- subset_taxa(ps.ab.4wk, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "Fusobacteria", "Tenericutes"))
+
+p.4wk.bar <- plot_bar(ps.phyla.4wk, x="Sample.ID", fill="Phylum")
+```
+```{r}
+p.4wk.bar <- p.4wk.bar + facet_wrap(~Condition, scale="free_x") +
+  labs(title="4 Week Antibiotic Cocktail", subtitle="End of first treatment week", x="Mouse ID") + 
+  scale_x_discrete(breaks=ps.ab.4wk.df$Sample.ID, labels=ps.ab.4wk.df$Mouse.ID)
+p.4wk.bar
+```
+```{r}
+ggsave("4wk_abs_abun.png", plot=p.4wk.bar, path = "~/code/Stool/pics", width=10, height=7)
+```
+
+
+
+
+## relative abundance
 ```{r}
 ps.4wk <- subset_samples(ps.phyla, Experiment == "4_week_Cocktail")
 ps.4wk.pData <- data.frame(sample_data(ps.4wk))
@@ -122,16 +161,42 @@ p_4wk +
 # Vancomycin redose
 ```{r}
 ps.revanc <- subset_samples(ps.phyla, Experiment == "Vancomycin_Redose")
+
 p_revanc <- plot_bar(ps.revanc, x="Sample.ID", fill="Phylum")
-p_revanc + labs(title="Vancomycin_Redose") + facet_wrap(~Experiment.Details, scale="free_x")
-p_4wk
 ```
+
+```{r}
+p_revanc + labs(title="Vancomycin_Redose") + facet_wrap(~Experiment.Details, scale="free_x") +
+  scale_x_discrete(breaks=ps.ab.4wk.df$Sample.ID, labels=ps.ab.4wk.df$Mouse.ID)
+
+```
+
+
+
+
+
 
 2 Week Vancomycin
 ```{r}
 ps.2wk <- subset_samples(ps.phyla, Experiment == "2_wk_vancomycin")
+ps.2wk.pData <- data.frame(sample_data(ps.2wk))
+
 p_2wk <- plot_bar(ps.2wk, x="Sample.ID", fill="Phylum")
-p_2wk + labs(title="2 week vancomycin Experiment", subtitle="RNAseq samples") + facet_wrap(~Experiment.Details, scale="free_x")
+p_2wk + labs(title="2 week vancomycin Experiment", subtitle="RNAseq samples") + facet_wrap(~Experiment.Details, scale="free_x")+
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)
+p_2wk
+```
+
+```{r}
+ps.ab.phyla <- subset_taxa(ps.ab, Phylum%in%c("Actinobacteria", "Bacteroidetes", "Firmicutes", "Proteobacteria", "Verrucomicrobia", "Fusobacteria", "Tenericutes"))
+
+
+ps.2wk <- subset_samples(ps.ab.phyla, Experiment == "2_wk_vancomycin")
+ps.2wk.pData <- data.frame(sample_data(ps.2wk))
+
+p_2wk <- plot_bar(ps.2wk, x="Sample.ID", fill="Phylum")
+p_2wk + labs(title="2 week vancomycin Experiment", subtitle="RNAseq samples") + facet_wrap(~Experiment.Details, scale="free_x")+
+  scale_x_discrete(breaks=ps.2wk.pData$Sample.ID, labels=ps.2wk.pData$Mouse.ID)
 p_2wk
 ```
 

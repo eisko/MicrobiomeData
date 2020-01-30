@@ -1,5 +1,6 @@
 ---
 title: "V1-3 Dada2 Processing"
+subtitle: "Less strict merge"
 output: html_document
 ---
 
@@ -165,7 +166,9 @@ dadaRs <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/dadaRs.RDS")
 ```{r}
 #used defaults settings for mergePairs: minOverlap = 12, maxMismatch = 0 (no mismatches allowed)
 # Sean also uses minOverlap=10, maxMismatch = 1, which is less strict but may results in ASVs with indels
-mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
+# mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose = TRUE)
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE, minOverlap=10, maxMismatch = 1)
+# ^less strict merge
 head(mergers[[1]])
 ```
 
@@ -173,12 +176,12 @@ head(mergers[[1]])
 ### START HERE!!!!! ####
 ```{r}
 # save progress
-saveRDS(mergers, file = "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers.RDS")
+saveRDS(mergers, file = "/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers1.RDS")
 ```
 
 ```{r}
 # read in mergers files
-mergers <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers.RDS")
+mergers <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/mergers1.RDS")
 ```
 
 
@@ -203,8 +206,6 @@ table(nchar(getSequences(seqtab)))
 seqlengths <- table(nchar(getSequences(seqtab)))
 ```
 
-
-### Plot distribution of sequence lengths
 ```{r}
 seqlengths.df <- data.frame(nchar(getSequences(seqtab)))
 names(seqlengths.df) <- "ASV.lengths"
@@ -212,7 +213,6 @@ seqlengths.p <- ggplot(seqlengths.df, aes(ASV.lengths)) +
   geom_histogram(binwidth = 10)
 seqlengths.p
 ```
-
 
 ## Remove Chimeras
 ```{r}
@@ -223,10 +223,10 @@ dim(seqtab.nochim)
 
 ### START HERE!!!### seqtab.nochim
 ```{r}
-saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
+saveRDS(seqtab.nochim, file="/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab1.nochim.RDS")
 ```
 ```{r}
-seqtab.nochim <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab.nochim.RDS")
+seqtab.nochim <- readRDS("/Users/iskoec/code/Stool/MS0067_MMAMicro/mouse/seqtab1.nochim.RDS")
 ```
 
 
