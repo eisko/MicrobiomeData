@@ -10,3 +10,4 @@ Scripts chained together in pipeline:
 
 filter --> sampleinfer --> nonchimTax --> tracker_script
 
+Used [**dada2 tutorial for big data**](https://benjjneb.github.io/dada2/bigdata_paired.html) to generate pipeline.
