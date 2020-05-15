@@ -11,3 +11,13 @@ Scripts chained together in pipeline:
 filter --> sampleinfer --> nonchimTax --> tracker_script
 
 Used [**dada2 tutorial for big data**](https://benjjneb.github.io/dada2/bigdata_paired.html) to generate pipeline.
+
+
+**********************************
+
+# Useful links/tutorials
+- [**Dada2**](https://benjjneb.github.io/dada2/tutorial.html)
+- [**PhyloSeq**](https://joey711.github.io/phyloseq/)
+- [**Picrust2**](https://github.com/picrust/picrust2/wiki)
+  - used Picrust2 but [**Picrust**](http://picrust.github.io/picrust/) page has some helpful info
+- [**Stamp**](https://beikolab.cs.dal.ca/software/STAMP) for visualizing picrust2 output. Had trouble loading this package on laptop
