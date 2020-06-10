@@ -12,7 +12,7 @@ export TMPDIR=/lscratch/$SLURM_JOB_ID
 
 module load R
 
-Rscript /home/iskoec/myscripts/dada2_biowulf_nochimTax.R > /home/iskoec/myoutput/dada2_nochimTax_$SLURM_JOB_ID.out
+Rscript /home/$USER/myscripts/dada2_biowulf_nochimTax.R > /home/$USER/myoutput/dada2_nochimTax_$SLURM_JOB_ID.out
 
 # chaining scripts together
-sbatch /home/iskoec/myscripts/dada2_tracker.sh
+sbatch /home/$USER/myscripts/dada2_tracker.sh

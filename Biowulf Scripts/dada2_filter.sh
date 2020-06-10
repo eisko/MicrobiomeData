@@ -10,7 +10,7 @@ export TMPDIR=/lscratch/$SLURM_JOB_ID
 
 module load R
 
-Rscript /home/iskoec/myscripts/dada2_biowulf_filter.R > /home/iskoec/myoutput/dada2_filter_$SLURM_JOB_ID.out
+Rscript /home/$USER/myscripts/dada2_biowulf_filter.R > /home/$USER/myoutput/dada2_filter_$SLURM_JOB_ID.out
 
 # chaining scripts together
-sbatch /home/iskoec/myscripts/dada2_sampleinfer.sh
+sbatch /home/$USER/myscripts/dada2_sampleinfer.sh
