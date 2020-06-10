@@ -8,22 +8,23 @@ library(gridExtra)
 library(grid)
 
 # CHANGE - map files to proper location
-tracker <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V1/tracker.rds")
-filterout <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V1/filterout.rds")
-mergers <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V1/mergers.rds")
-seqtab_nochim <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V1/seqtab_nochim.rds")
+tracker <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V2/tracker.rds")
+filterout <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V2/filterout.rds")
+mergers <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V2/mergers.rds")
+seqtab_nochim <- readRDS("/data/iskoec/dada2_R/V13_Dada2/V2/seqtab_nochim.rds")
 
 # CHANGE - delineate folder to save graphs
-savepath <- "/data/iskoec/dada2_R/V13_Dada2/V1/"
+savepath <- "/data/iskoec/dada2_R/V13_Dada2/V2/"
 
 # CHANGE - name experiment
-exp <- "V1"
+exp <- "V13_V2"
 
 # CHANGE - document pipeline changes made
 settings <- file(paste0(savepath, exp, "_settings.txt"))
 writeLines(c("Pipeline settings used to run V13 samples for presentation", 
              "Used settings suggested by Sean Conlan (Segre lab bioinformatician)",
-             "FilterandTrim: maxEE=c(2,4), truncQ=2, maxN=0, rm.phix=TRUE,",
+             "Relaxed filter maxEE settings slightly",
+             "FilterandTrim: maxEE=c(3,5), truncQ=2, maxN=0, rm.phix=TRUE,",
              "\tcompress=TRUE, verbose=TRUE, multithread=TRUE",
              "MergePairs: minOverlap=10, maxMismatch = 1",
              "Nonchim:,method='consensus', multithread=TRUE"),
@@ -47,6 +48,9 @@ names(tracker_df) <- c("SampleNames", "input", "filtered", "denoisedF", "denoise
 
 number <- function(x) as.numeric(as.character(x))
 tracker_df[,2:7] <- sapply(tracker_df[,2:7], number)
+
+# save tracker df for later use
+saveRDS(tracker_df, "/data/iskoec/dada2_R/V13_Dada2/V2/tracker_final.rds")
 
 
 # create data table suited for ggplots

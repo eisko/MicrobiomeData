@@ -49,8 +49,8 @@ rm(derepF); rm(derepR)
 seqtab <- makeSequenceTable(mergers)
 
 # save files
-saveRDS(mergers, file="/data/iskoec/dada2_R/V13_Dada2/V1/mergers.rds") # CHANGE ME
-saveRDS(tracker, file="/data/iskoec/dada2_R/V13_Dada2/V1/tracker.rds") # CHANGE ME
-saveRDS(seqtab, file="/data/iskoec/dada2_R/V13_Dada2/V1/seqtab.rds") # CHANGE ME to where you want sequence table saved
+saveRDS(mergers, file="/data/iskoec/dada2_R/V13_Dada2/V2/mergers.rds") # CHANGE ME
+saveRDS(tracker, file="/data/iskoec/dada2_R/V13_Dada2/V2/tracker.rds") # CHANGE ME
+saveRDS(seqtab, file="/data/iskoec/dada2_R/V13_Dada2/V2/seqtab.rds") # CHANGE ME to where you want sequence table saved
 
 
