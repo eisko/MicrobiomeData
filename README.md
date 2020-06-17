@@ -14,6 +14,16 @@ Used [**dada2 tutorial for big data**](https://benjjneb.github.io/dada2/bigdata_
 
 
 **********************************
+# Picrust2
+Followed tutorial for Picrust2 to generate .tsv files: [**Picrust2 Tutorial**](https://github.com/picrust/picrust2/wiki/PICRUSt2-Tutorial-(v2.1.4-beta))
+
+Wanted to use [**STAMP**](https://beikolab.cs.dal.ca/software/STAMP) to analyze picrust2 output. Had a really hard time installing it on Mac. Biom-format package (needed python 3) was incompatible with stamp (needed python 2).
+
+Found this [solution](https://groups.google.com/forum/?hl=en#!topic/stamp_help/VSTSqyE2Kec) and seems to work. Solution centered around specifying correct biom-format version. Works for installing stamp on macs.
+
+
+*************************************
+
 
 # Useful links/tutorials
 - [**Dada2**](https://benjjneb.github.io/dada2/tutorial.html)
